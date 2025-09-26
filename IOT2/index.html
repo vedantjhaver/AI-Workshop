@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prodapt IoT Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Heroicons for the "Triangle" Theme (using chevrons/angles) -->
+    <style>
+        /* Custom Colors based on Prodapt brand identity */
+        .prodapt-blue { background-color: #004aad; }
+        .prodapt-accent { background-color: #e6372d; }
+        .text-prodapt-accent { color: #e6372d; }
+        .border-prodapt-accent { border-color: #e6372d; }
+        .bg-prodapt-blue { background-color: #004aad; }
+
+        /* Custom scrollbar for alerts panel */
+        #alerts-panel::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+            background-color: #1a1a1a;
+        }
+        #alerts-panel::-webkit-scrollbar {
+            width: 6px;
+            background-color: #1a1a1a;
+        }
+        #alerts-panel::-webkit-scrollbar-thumb {
+            background-color: #004aad;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+    <div class="prodapt-blue p-4 shadow-xl flex justify-between items-center sticky top-0 z-10">
+        <h1 class="text-3xl font-bold tracking-wider flex items-center">
+            <svg class="w-6 h-6 mr-3 text-prodapt-accent transform rotate-45" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zM10 0a10 10 0 110 20 10 10 0 010-20zM9 14V6l6 4-6 4z"/></svg>
+            IoT Operations Dashboard
+        </h1>
+        <div class="text-sm font-light">Prodapt Practice Team | <span id="current-time"></span></div>
+    </div>
+
+    <main class="p-6 lg:p-10">
+        <!-- Summary and Controls Section -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+            <!-- Summary Statistics -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold mb-3 text-prodapt-accent flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                    Summary
+                </h2>
+                <div class="space-y-2">
+                    <p>Total Devices: <span id="stat-total" class="font-bold text-lg">0</span></p>
+                    <p>Devices Online: <span id="stat-online" class="font-bold text-lg text-green-400">0</span></p>
+                    <p>Devices Offline: <span id="stat-offline" class="font-bold text-lg text-red-500">0</span></p>
+                    <p>Active Alerts: <span id="stat-alerts" class="font-bold text-lg text-yellow-400">0</span></p>
+                </div>
+            </div>
+
+            <!-- Auto-Refresh Control -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg col-span-1 md:col-span-2">
+                <h2 class="text-xl font-semibold mb-3 text-prodapt-accent flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Auto-Refresh System
+                </h2>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 items-center">
+                    <select id="refresh-interval" class="bg-gray-700 border border-gray-600 rounded-md p-2 text-sm focus:ring-prodapt-accent focus:border-prodapt-accent">
+                        <option value="0">Refresh Off</option>
+                        <option value="5000">5 Seconds</option>
+                        <option value="10000" selected>10 Seconds (Default)</option>
+                        <option value="30000">30 Seconds</option>
+                        <option value="60000">60 Seconds</option>
+                    </select>
+                    <p class="text-sm">
+                        Status: <span id="refresh-status" class="font-semibold text-green-400">Running (10s)</span>
+                    </p>
+                    <button id="add-device-btn" class="prodapt-accent text-white font-semibold py-2 px-4 rounded-md shadow-md hover:opacity-90 transition duration-150 flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Add Demo Device
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Main Dashboard Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            
+            <!-- Alerts Panel -->
+            <div class="lg:col-span-1 bg-gray-800 p-6 rounded-lg shadow-lg h-96 overflow-y-auto" id="alerts-panel">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    System Alerts (Gemini AI)
+                </h2>
+                <div id="alert-list" class="space-y-4">
+                    <!-- Alerts will be injected here -->
+                    <div class="bg-gray-700 p-3 rounded-lg border-l-4 border-yellow-500">
+                        <p class="text-sm font-medium">System Initialized.</p>
+                        <p class="text-xs text-gray-400">Awaiting device data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Grid -->
+            <div class="lg:col-span-3">
+                <div id="device-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Device Cards will be injected here -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // === Configuration and Initial Data ===
+        const DEVICE_TYPES = [
+            { name: 'Temperature Sensor', icon: '🌡️', readings: ['Temperature (°C)'], min: 18, max: 35 },
+            { name: 'Motion Detector', icon: ' حركة', readings: ['Motion Detected'], min: 0, max: 1 },
+            { name: 'Smart Light', icon: '💡', readings: ['Luminosity (lux)', 'Color Temp (K)'], min: 50, max: 1000 },
+            { name: 'Smart Plug', icon: '🔌', readings: ['Power Consumption (W)'], min: 1, max: 500 }
+        ];
+
+        let devices = [];
+        let refreshIntervalId = null;
+        const DEFAULT_INTERVAL = 10000; // 10 seconds
+
+        // === Utility Functions ===
+
+        /** Generates a unique, readable ID. */
+        function generateId() {
+            return 'iot-' + Math.random().toString(36).substring(2, 9);
+        }
+
+        /** Generates randomized data for a device. */
+        function generateRandomData(device) {
+            const readings = {};
+            device.type.readings.forEach(readingName => {
+                let value;
+                if (readingName === 'Motion Detected') {
+                    value = Math.random() > 0.8 ? 1 : 0; // 20% chance of motion
+                } else if (readingName.includes('Temperature')) {
+                    value = (Math.random() * (device.type.max - device.type.min) + device.type.min).toFixed(1);
+                } else if (readingName.includes('Luminosity')) {
+                    value = Math.floor(Math.random() * (1000 - 50) + 50);
+                } else if (readingName.includes('Color Temp')) {
+                    value = Math.floor(Math.random() * (6500 - 2700) + 2700);
+                } else if (readingName.includes('Power Consumption')) {
+                    value = (Math.random() * (500 - 1) + 1).toFixed(2);
+                }
+                readings[readingName] = value;
+            });
+
+            // 15% chance of status flip
+            const newStatus = Math.random() > 0.85 ? (device.status === 'online' ? 'offline' : 'online') : device.status;
+            
+            return {
+                status: newStatus,
+                readings: readings,
+                battery: Math.max(0, Math.min(100, device.battery + Math.floor(Math.random() * 3) - 1)), // subtle drift
+                timestamp: new Date().toLocaleTimeString(),
+                lastUpdate: Date.now()
+            };
+        }
+
+        /** Gemini AI Alert Simulation: Heuristics-based alert generation. */
+        function simulateGeminiAlerts(device) {
+            let alertMessage = null;
+            let rationale = "";
+
+            // --- Heuristic Rules based on Industry Domain Knowledge ---
+
+            // 1. Critical Temperature Threshold
+            if (device.type.name.includes('Temperature') && device.status === 'online') {
+                const temp = parseFloat(device.readings['Temperature (°C)']);
+                if (temp > 30) {
+                    alertMessage = `High Temperature Warning for ${device.name}`;
+                    rationale = `Temperature is ${temp}°C. **Rationale:** Exceeding 30°C is a common threshold indicating potential equipment overheating or environmental instability, often requiring immediate HVAC inspection in data centers/facilities.`;
+                }
+            }
+
+            // 2. Motion Detector Inactivity Alert (Stale Data)
+            if (device.type.name.includes('Motion Detector') && device.status === 'online') {
+                const motion = device.readings['Motion Detected'];
+                const timeSinceLastUpdate = (Date.now() - device.lastUpdate) / 1000;
+                if (timeSinceLastUpdate > 30 && motion == 0) { // If no motion for a while and stale
+                    alertMessage = `Anomaly: Prolonged Inactivity on ${device.name}`;
+                    rationale = `No motion detected for >30 seconds and data is stale. **Rationale:** Motion detectors in security/access areas that report zero motion for an extended period may indicate a failure to transmit, a tamper event, or an issue with the sensor itself, even if marked "online".`;
+                }
+            }
+
+            // 3. Low Power/Battery Alert
+            if (device.battery < 20 && device.status === 'online') {
+                alertMessage = `Low Battery Alert for ${device.name}`;
+                rationale = `Battery is at ${device.battery}%. **Rationale:** Battery levels below 20% are flagged for proactive maintenance to prevent unplanned downtime, which is critical for remote IoT deployments.`;
+            }
+
+            // 4. Offline Criticality Alert (Status Change)
+            if (device.status === 'offline' && device.lastStatus !== 'offline') {
+                alertMessage = `CRITICAL: ${device.name} is Offline`;
+                rationale = `Device has just transitioned to offline status. **Rationale:** Any unexpected loss of connectivity requires immediate notification and root cause analysis, as it impacts data collection and service availability.`;
+            }
+
+            device.lastStatus = device.status; // Update last status for the next check
+
+            if (alertMessage) {
+                addAlert(alertMessage, rationale, 'yellow');
+                return true;
+            }
+            return false;
+        }
+
+        /** Adds an alert to the panel. */
+        function addAlert(title, rationale, type = 'gray') {
+            const alertList = document.getElementById('alert-list');
+            const color = type === 'yellow' ? 'yellow-500' : 'gray-500';
+
+            const alertHTML = `
+                <div class="bg-gray-700 p-3 rounded-lg border-l-4 border-${color} text-sm">
+                    <p class="font-bold text-gray-100">${title} <span class="text-xs text-gray-400">(${new Date().toLocaleTimeString()})</span></p>
+                    <p class="text-xs text-gray-300 mt-1">${rationale}</p>
+                </div>
+            `;
+            alertList.insertAdjacentHTML('afterbegin', alertHTML);
+            document.getElementById('stat-alerts').textContent = alertList.children.length - 1; // Subtract 1 for the initial system message
+        }
+
+
+        // === Core Dashboard Functions ===
+
+        /** Renders a single device card HTML. */
+        function renderDeviceCard(device) {
+            const statusColor = device.status === 'online' ? 'bg-green-500' : 'bg-red-500';
+            const statusText = device.status === 'online' ? 'Online' : 'Offline';
+            const statusIcon = device.status === 'online' ? 
+                `<svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>` : 
+                `<svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>`;
+            
+            let readingsHTML = '';
+            for (const key in device.readings) {
+                readingsHTML += `<p class="text-sm"><span class="font-semibold text-gray-300">${key}:</span> ${device.readings[key]}</p>`;
+            }
+
+            return `
+                <div id="${device.id}" class="bg-gray-800 p-5 rounded-lg shadow-xl hover:shadow-2xl transition duration-300 border border-gray-700">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-lg font-bold text-prodapt-accent">${device.type.icon} ${device.name}</h3>
+                        <span class="text-xs font-semibold py-1 px-3 rounded-full ${statusColor} text-gray-900 flex items-center">
+                            ${statusText} ${statusIcon}
+                        </span>
+                    </div>
+
+                    <div class="space-y-2 mb-4 text-sm">
+                        ${readingsHTML}
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs mb-4">
+                        <p>Last Update: <span class="font-medium">${device.timestamp}</span></p>
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-1 text-green-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M11 5a2 2 0 10-4 0v2.247A6.974 6.974 0 0010 16a6.974 6.974 0 004-8.753V5a2 2 0 10-4 0zM10 0a10 10 0 110 20 10 10 0 010-20zM4 10a6 6 0 1012 0 6 6 0 00-12 0z"/></svg>
+                            Batt: <span class="font-bold ml-1 ${device.battery < 20 ? 'text-red-500' : 'text-green-400'}">${device.battery}%</span>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex space-x-3 mt-4 pt-3 border-t border-gray-700">
+                        <button onclick="togglePower('${device.id}')" class="flex-1 bg-gray-700 text-white py-1 text-sm rounded-md hover:bg-prodapt-accent transition duration-150 flex items-center justify-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Power Toggle
+                        </button>
+                        <button onclick="rebootDevice('${device.id}')" class="flex-1 bg-gray-700 text-white py-1 text-sm rounded-md hover:bg-prodapt-blue transition duration-150 flex items-center justify-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            Reboot
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        /** Rerenders the entire dashboard grid and updates statistics. */
+        function renderDashboard() {
+            const grid = document.getElementById('device-grid');
+            grid.innerHTML = devices.map(renderDeviceCard).join('');
+            updateStats();
+        }
+
+        /** Updates summary statistics. */
+        function updateStats() {
+            const onlineCount = devices.filter(d => d.status === 'online').length;
+            const offlineCount = devices.length - onlineCount;
+
+            document.getElementById('stat-total').textContent = devices.length;
+            document.getElementById('stat-online').textContent = onlineCount;
+            document.getElementById('stat-offline').textContent = offlineCount;
+
+            // Update current time
+            document.getElementById('current-time').textContent = new Date().toLocaleTimeString();
+        }
+
+        /** Updates all devices with new randomized data. */
+        function refreshAllData() {
+            devices = devices.map(device => {
+                // Only refresh data if the device is online, otherwise keep status 'offline'
+                if (device.status === 'online') {
+                    return Object.assign(device, generateRandomData(device));
+                }
+                return device;
+            });
+
+            // Simulate AI alerts after data refresh
+            devices.forEach(simulateGeminiAlerts);
+
+            renderDashboard();
+        }
+
+        /** Handles device power toggle. */
+        function togglePower(id) {
+            const device = devices.find(d => d.id === id);
+            if (device) {
+                device.status = device.status === 'online' ? 'offline' : 'online';
+                addAlert(`ACTION: ${device.name} power was manually ${device.status === 'online' ? 'ON' : 'OFF'}`, `Manual override executed.`, 'gray');
+                renderDashboard();
+            }
+        }
+
+        /** Handles device reboot. */
+        function rebootDevice(id) {
+            const device = devices.find(d => d.id === id);
+            if (device) {
+                device.status = 'online';
+                // Reset data after reboot
+                Object.assign(device, generateRandomData(device));
+                device.battery = 100;
+                addAlert(`ACTION: ${device.name} rebooted successfully.`, `Device status reset to online and battery topped off.`, 'gray');
+                renderDashboard();
+            }
+        }
+
+        // === Auto-Refresh System Logic ===
+        function startRefresh(interval) {
+            stopRefresh(); // Clear existing interval
+            if (interval > 0) {
+                refreshIntervalId = setInterval(refreshAllData, interval);
+                document.getElementById('refresh-status').textContent = `Running (${interval/1000}s)`;
+                document.getElementById('refresh-status').classList.remove('text-red-500');
+                document.getElementById('refresh-status').classList.add('text-green-400');
+            } else {
+                document.getElementById('refresh-status').textContent = 'Stopped';
+                document.getElementById('refresh-status').classList.remove('text-green-400');
+                document.getElementById('refresh-status').classList.add('text-red-500');
+            }
+        }
+
+        function stopRefresh() {
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+                refreshIntervalId = null;
+            }
+        }
+
+        // === Initialization and Event Handlers ===
+
+        /** Creates and adds a new demo device to the array. */
+        function addDemoDevice() {
+            const type = DEVICE_TYPES[Math.floor(Math.random() * DEVICE_TYPES.length)];
+            const newDevice = {
+                id: generateId(),
+                name: `${type.name} ${devices.length + 1}`,
+                type: type,
+                status: Math.random() > 0.1 ? 'online' : 'offline', // 90% chance to start online
+                battery: Math.floor(Math.random() * (100 - 40) + 40),
+                readings: {},
+                timestamp: new Date().toLocaleTimeString(),
+                lastUpdate: Date.now(),
+                lastStatus: 'online' // Initial status for alert check
+            };
+            // Generate initial readings
+            Object.assign(newDevice, generateRandomData(newDevice));
+            devices.push(newDevice);
+            renderDashboard();
+        }
+
+        function initializeDashboard() {
+            // Add a few starting devices
+            for (let i = 0; i < 6; i++) {
+                addDemoDevice();
+            }
+
+            // Start auto-refresh with default interval (10s)
+            startRefresh(DEFAULT_INTERVAL);
+            
+            // Event listener for refresh interval change
+            document.getElementById('refresh-interval').addEventListener('change', (e) => {
+                const interval = parseInt(e.target.value);
+                startRefresh(interval);
+            });
+
+            // Event listener for adding new device
+            document.getElementById('add-device-btn').addEventListener('click', addDemoDevice);
+
+            // Initial render
+            renderDashboard();
+        }
+
+        // Kick off the application
+        initializeDashboard();
+    </script>
+</body>
+</html>
